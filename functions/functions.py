@@ -18,12 +18,10 @@ from sqlalchemy import create_engine, text, types as sat
 
 #from __future__ import annotations
 
-from typing import Any, Iterator, Optional, TYPE_CHECKING
+from typing import Any, Iterator, Optional
 
 import pyodbc
 
-if TYPE_CHECKING:
-    from pyspark.sql import SparkSession
 
 def _import_pandas():
     import pandas as pd  # type: ignore
@@ -35,24 +33,21 @@ def _import_polars():
     return pl
 
 
-def _import_pyspark():
-    from pyspark.sql import SparkSession  # type: ignore
-    return SparkSession
 
 
-def _detect_engine(prefer: tuple[str, ...] = ("pyspark", "polars", "pandas")) -> str:
+def _detect_engine(prefer: tuple[str, ...] = ("polars", "pandas")) -> str:
     for eng in prefer:
         try:
-            if eng == "pyspark":
-                _import_pyspark()
-            elif eng == "polars":
+            if eng == "polars":
                 _import_polars()
             elif eng == "pandas":
                 _import_pandas()
+            else:
+                continue
             return eng
         except Exception:
             continue
-    raise ImportError("No hay engines disponibles. Instala pandas, polars o pyspark.")
+    raise ImportError("No hay engines disponibles. Instala pandas o polars.")
 
 
 def _iter_rows(cursor: pyodbc.Cursor, chunksize: int) -> Iterator[list[tuple]]:
@@ -69,7 +64,6 @@ def query_to_df(
     sql: str,
     connection_string: str,
     engine: str = "auto",
-    spark: Optional["SparkSession"] = None,
     *,
     chunksize: int = 50_000,
     return_iter: bool = False,
@@ -98,10 +92,6 @@ def query_to_df(
                 if engine == "polars":
                     pl = _import_polars()
                     return pl.DataFrame()
-                if engine == "pyspark":
-                    if spark is None:
-                        raise ValueError("Para engine='pyspark' proporciona un SparkSession existente.")
-                    return spark.createDataFrame([], schema=[])
                 return []
 
             # --- Modo iterador (más seguro para memoria) ---
@@ -124,21 +114,8 @@ def query_to_df(
 
                     return _it()
 
-                elif engine == "pyspark":
-                    if spark is None:
-                        raise ValueError("Para engine='pyspark' proporciona un SparkSession existente.")
-
-                    def _it() -> Iterator[Any]:
-                        for data in _iter_rows(cursor, chunksize):
-                            # construir por chunk en el driver sigue siendo costoso,
-                            # pero al menos no revienta RAM en un solo golpe.
-                            dict_rows = [dict(zip(columns, row)) for row in data]
-                            yield spark.createDataFrame(dict_rows)
-
-                    return _it()
-
                 else:
-                    raise ValueError("engine inválido. Usa 'auto', 'polars', 'pandas' o 'pyspark'.")
+                    raise ValueError("engine inválido. Usa 'auto', 'polars' o 'pandas'.")
 
             # --- Modo “devuelve DF completo” (concatena chunks) ---
             if engine == "pandas":
@@ -155,21 +132,8 @@ def query_to_df(
                     frames.append(pl.DataFrame(data, schema=columns))
                 return pl.concat(frames, how="vertical") if frames else pl.DataFrame(schema=columns)
 
-            elif engine == "pyspark":
-                # Recomendación: NO traer todo por pyodbc a Spark.
-                # Si igual lo haces, al menos exige SparkSession externo.
-                if spark is None:
-                    raise ValueError("Para engine='pyspark' proporciona un SparkSession existente.")
-
-                sdf = None
-                for data in _iter_rows(cursor, chunksize):
-                    dict_rows = [dict(zip(columns, row)) for row in data]
-                    chunk_df = spark.createDataFrame(dict_rows)
-                    sdf = chunk_df if sdf is None else sdf.unionByName(chunk_df)
-                return sdf
-
             else:
-                raise ValueError("engine inválido. Usa 'auto', 'polars', 'pandas' o 'pyspark'.")
+                raise ValueError("engine inválido. Usa 'auto', 'polars' o 'pandas'.")
             
 
 ####################################################################################################################
@@ -178,58 +142,8 @@ def query_to_df(
 
 #from __future__ import annotations
 
-from typing import Any, Iterator, Optional, Sequence, Iterable, Literal, TYPE_CHECKING
+from typing import Any, Iterator, Optional, Sequence, Iterable, Literal
 import math
-#import pyodbc
-
-if TYPE_CHECKING:
-    from pyspark.sql import DataFrame as SparkDataFrame
-    from pyspark.sql import SparkSession
-
-
-#def _import_pandas():
-#    import pandas as pd  # type: ignore
-#    return pd
-
-
-#def _import_polars():
-#    import polars as pl  # type: ignore
-#    return pl
-
-
-#def _import_pyspark():
-#    from pyspark.sql import DataFrame as SparkDataFrame  # type: ignore
-#    from pyspark.sql import SparkSession  # type: ignore
-#    return SparkDataFrame, SparkSession
-
-
-#def _detect_df_engine(df: Any) -> str:
-#    """Detecta si df es pandas/polars/pyspark por tipo sin depender de imports obligatorios."""
-#    # pandas
-#    try:
-#        pd = _import_pandas()
-#        if isinstance(df, pd.DataFrame):
-#            return "pandas"
-#    except Exception:
-#        pass
-#
-#    # polars
-#    try:
-#        pl = _import_polars()
-#        if isinstance(df, pl.DataFrame):
-#            return "polars"
-#    except Exception:
-#        pass
-#
-#    # pyspark
-#    try:
-#        SparkDataFrame, _ = _import_pyspark()
-#        if isinstance(df, SparkDataFrame):
-#            return "pyspark"
-#    except Exception:
-#        pass
-#
-#    raise TypeError("No pude detectar el engine del DataFrame. Usa pandas, polars o pyspark.")
 
 
 def _qident_sqlserver(name: str) -> str:
@@ -289,21 +203,8 @@ def _iter_rows_from_df(
                 rows.append(tuple(_normalize_value(v) for v in r))
             yield rows
 
-    elif engine == "pyspark":
-        # OJO: traer a driver puede ser pesado; preferir df.write.jdbc.
-        # Aun así, soportamos chunking con toLocalIterator.
-        # Esto no “trocea” de manera perfecta, pero limita memoria acumulada.
-        batch = []
-        for row in df.select(*columns).toLocalIterator():
-            batch.append(tuple(_normalize_value(getattr(row, c)) for c in columns))
-            if len(batch) >= chunksize:
-                yield batch
-                batch = []
-        if batch:
-            yield batch
-
     else:
-        raise ValueError("engine inválido. Usa pandas/polars/pyspark.")
+        raise ValueError("engine inválido. Usa pandas o polars.")
 
 
 def _build_insert_sql_sqlserver(schema: str, table: str, columns: Sequence[str]) -> str:
@@ -396,14 +297,10 @@ def df_to_db(
 
     if columns is None:
         # Extrae columnas del DF según engine
-        if engine == "pandas":
-            columns = list(df.columns)
-        elif engine == "polars":
-            columns = list(df.columns)
-        elif engine == "pyspark":
+        if engine in ("pandas", "polars"):
             columns = list(df.columns)
         else:
-            raise ValueError("engine inválido.")
+            raise ValueError("engine inválido. Usa pandas o polars.")
     else:
         columns = list(columns)
 
@@ -446,8 +343,6 @@ def df_to_db(
                     partition_values = list(df[partition_column].dropna().unique())
                 elif engine == "polars":
                     partition_values = df.select(partition_column).unique().to_series().to_list()
-                elif engine == "pyspark":
-                    partition_values = [r[0] for r in df.select(partition_column).distinct().collect()]
                 else:
                     partition_values = []
 
@@ -720,22 +615,12 @@ def build_sqlserver_engine(
 
     odbc_connection_string = ";".join(parts) + ";"
 
-    # 2) SQLAlchemy URL
+    # 2) SQLAlchemy URL (siempre con Trusted_Connection)
     driver_url = driver.replace(" ", "+")
-    # Nota: para SQL Auth es mejor pasar parámetros por odbc_connect; aquí mantenemos simple.
-    if trusted_connection:
-        sqlalchemy_url = (
-            f"mssql+pyodbc://{server}/{database}"
-            f"?trusted_connection=yes&driver={driver_url}"
-        )
-    else:
-        # Si username/password no están, fallará con diagnóstico en connect
-        user = username or ""
-        pwd = password or ""
-        sqlalchemy_url = (
-            f"mssql+pyodbc://{user}:{pwd}@{server}/{database}"
-            f"?driver={driver_url}"
-        )
+    sqlalchemy_url = (
+        f"mssql+pyodbc://{server}/{database}"
+        f"?trusted_connection=yes&driver={driver_url}"
+    )
 
     diag = SqlServerDiagnostics(
         ok=False,
