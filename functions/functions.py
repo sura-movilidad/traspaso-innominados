@@ -35,19 +35,48 @@ def _import_polars():
 
 
 
-def _detect_engine(prefer: tuple[str, ...] = ("polars", "pandas")) -> str:
+def _detect_df_engine(df: Any, prefer: tuple[str, ...] = ("polars", "pandas")) -> str:
+    """
+    Detecta el engine del DataFrame recibido.
+    Retorna: "pandas" o "polars"
+
+    - prefer: orden de preferencia cuando ambos están instalados (no afecta si el tipo es claro).
+    """
+    # Detección por módulos instalados + isinstance
     for eng in prefer:
-        try:
-            if eng == "polars":
-                _import_polars()
-            elif eng == "pandas":
-                _import_pandas()
-            else:
-                continue
-            return eng
-        except Exception:
-            continue
-    raise ImportError("No hay engines disponibles. Instala pandas o polars.")
+        if eng == "pandas":
+            try:
+                pd = _import_pandas()
+                # pandas.DataFrame
+                if isinstance(df, pd.DataFrame):
+                    return "pandas"
+            except Exception:
+                pass
+
+        elif eng == "polars":
+            try:
+                pl = _import_polars()
+                # polars.DataFrame o polars.LazyFrame (si quisieras soportarlo)
+                if isinstance(df, pl.DataFrame):
+                    return "polars"
+                # Opcional: soportar LazyFrame convirtiendo a DF (ojo RAM)
+                # if isinstance(df, pl.LazyFrame):
+                #     return "polars"
+            except Exception:
+                pass
+
+    # Heurística fallback: si tiene "to_pandas" suele ser polars
+    if hasattr(df, "to_pandas"):
+        return "polars"
+
+    # Heurística fallback: si tiene "iloc" y "itertuples" suele ser pandas
+    if hasattr(df, "iloc") and hasattr(df, "itertuples"):
+        return "pandas"
+
+    raise TypeError(
+        "No se pudo detectar el tipo de df. Esperaba pandas.DataFrame o polars.DataFrame. "
+        f"Recibido: {type(df)!r}"
+    )
 
 
 def _iter_rows(cursor: pyodbc.Cursor, chunksize: int) -> Iterator[list[tuple]]:
@@ -76,7 +105,7 @@ def query_to_df(
     """
     engine = (engine or "auto").lower().strip()
     if engine == "auto":
-        engine = _detect_engine()
+        engine = _detect_df_engine()
 
     # Conexión y cursor con context managers
     with pyodbc.connect(connection_string) as conn:
@@ -368,8 +397,6 @@ def df_to_db(
             cursor.execute(f"IF OBJECT_ID('tempdb..#stage') IS NOT NULL DROP TABLE #stage;")
             cursor.execute(f"SELECT TOP 0 * INTO #stage FROM {full};")
 
-            # Insertar chunks al staging
-            stage_insert_sql = _build_insert_sql_sqlserver("tempdb", "#stage", columns)  # NO funciona así con temp.
             # Para temp table, insert sin schema:
             cols = ", ".join(_qident_sqlserver(c) for c in columns)
             params = ", ".join("?" for _ in columns)
@@ -711,7 +738,44 @@ def build_sqlserver_engine(
     raise ValueError("on_fail debe ser: 'warn', 'silent' o 'raise'")
 
 ####################################################################################################################
+########################################### SQL sin devolver DF ################################################
 ####################################################################################################################
+
+def exec_sql(
+    sql: str,
+    connection_string: str,
+) -> dict:
+    """
+    Ejecuta SQL sin devolver DataFrame (para DDL/DML).
+    Devuelve un resumen simple.
+    """
+    import pyodbc
+    t0 = time.time()
+    conn = pyodbc.connect(connection_string)
+    try:
+        conn.autocommit = False
+        cur = conn.cursor()
+        cur.execute(sql)
+
+        # Consumir nextset si aplica
+        while True:
+            try:
+                if not cur.nextset():
+                    break
+            except pyodbc.Error:
+                break
+
+        conn.commit()
+        return {"ok": True, "seconds": round(time.time() - t0, 3)}
+    except Exception as e:
+        conn.rollback()
+        return {"ok": False, "error": repr(e), "seconds": round(time.time() - t0, 3)}
+    finally:
+        conn.close()
+
+
+####################################################################################################################
+########################################### Homologación de nombres ################################################
 ####################################################################################################################
 
 def _strip_accents(s: str) -> str:
