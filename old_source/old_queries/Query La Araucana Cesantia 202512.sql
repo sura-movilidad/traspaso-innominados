@@ -1,0 +1,90 @@
+DROP TABLE IF EXISTS #Oficio_LA_Araucana_PPI
+SELECT 
+    (NANOPROC * 100 + NMESPROC)			AS mes_referencia, 
+    1			AS COD_TIPO_DOCUMENTO_ASEGURADO, 
+    NNUMCERT	AS RUT, 
+    NNUMDOCU, 
+    NNUMITEM, 
+	PLAN_TECNICO,
+    NCORASVS	AS COD_RAMO, 
+    PRIMA_UF, 
+    3			AS COD_PERIODICIDAD_PAGO, 
+    9			AS COD_TIPO_PAGO
+INTO #Oficio_LA_Araucana_PPI
+FROM Monitoring_LaAraucana
+WHERE COBERTURA_AGRUP != 'TOTAL';
+
+
+DELETE FROM #Oficio_LA_Araucana_PPI
+WHERE nnumdocu IN (6354562 , 7561166) AND mes_referencia < 202411
+OR nnumdocu NOT IN (6354562 , 7561166) AND mes_referencia < 202412;
+
+
+DROP TABLE IF EXISTS #Oficio_LA_Araucana_PPI2
+SELECT 
+    MAX(mes_referencia)		AS max_mes_referencia, 
+    COD_TIPO_DOCUMENTO_ASEGURADO, 
+    RUT, 
+    NNUMDOCU, 
+    NNUMITEM, 
+	PLAN_TECNICO,
+    COD_RAMO, 
+    SUM(PRIMA_UF)			AS PRIMA_DIRECTA, 
+    COD_PERIODICIDAD_PAGO, 
+    COD_TIPO_PAGO
+INTO #Oficio_LA_Araucana_PPI2
+FROM #Oficio_LA_Araucana_PPI
+GROUP BY     
+    COD_TIPO_DOCUMENTO_ASEGURADO, 
+    RUT, 
+    NNUMDOCU, 
+    NNUMITEM, 
+	PLAN_TECNICO,
+    COD_RAMO, 
+    COD_PERIODICIDAD_PAGO, 
+    COD_TIPO_PAGO;
+
+
+DROP TABLE IF EXISTS Oficio_LA_Araucana_PPI202512
+SELECT 
+	99017000	AS RUT_COMPANIA, 
+	2			AS DV_RUT_COMPANIA,
+    'Seguros Suramericana S.A.'		AS NOMBRE_COMPANIA,
+    a.*, 
+	70016160	AS RUT_CONTRATANTE,	
+	9			AS DV_CONTRANTE,
+	CASE 
+		WHEN nnumdocu IN (6354562 , 7561166) AND max_mes_referencia = 202510 THEN 1 
+		WHEN nnumdocu NOT IN (6354562 , 7561166) AND max_mes_referencia = 202511 THEN 1 
+		ELSE 0  
+	END			AS vigentes,
+    CASE 
+		WHEN a.PLAN_TECNICO = 4331 THEN b.ValorCuota * 3 
+		WHEN  a.PLAN_TECNICO = 4332 THEN b.ValorCuota * 6
+		WHEN  a.PLAN_TECNICO = 4333 THEN b.ValorCuota * 8
+		WHEN  a.PLAN_TECNICO = 4334 THEN b.ValorCuota * 12
+		ELSE b.ValorCuota * 4 
+	END		AS MONTO_ASEGURADO_DIRECTO_CLP,
+	'3B'	AS Subdiv, 
+	33		AS RAMO_CMF
+INTO Oficio_LA_Araucana_PPI202512
+FROM #Oficio_LA_Araucana_PPI2 a
+LEFT JOIN TOTAL_ARAUCANA b
+ON a.max_mes_referencia = b.MES_Recaudacion
+AND a.NNUMITEM = b.foliocredito
+AND a.nnumdocu = b.POLIZA
+	
+
+
+--Sacaremos el rut del contratante de la base principal: RUT_CONTRATANTE
+SELECT  * FROM OPENQUERY (SOL, 'SELECT * FROM wrkroyal.ofi113857 WHERE DOCUMENTO  in (4668266, 4780716, 4780717, 4780718, 4780719, 5698774,6354562, 7561166, 4659577,  4780715)') 
+
+
+
+/* CMF 604 oficio 202512*/
+SELECT 
+	VIGENTES,
+	COUNT(NNUMDOCU) AS REGISTROS
+FROM Oficio_LA_Araucana_PPI202512
+GROUP BY VIGENTES;
+
