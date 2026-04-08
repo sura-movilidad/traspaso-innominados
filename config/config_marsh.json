@@ -1,0 +1,11 @@
+{
+    "tablas_remotas" : {
+        "marsh_acumulado_r_bkp" : "MARSH_ACUMULADO_R_BKP",
+        "marsh_final_acumulado_bkp" : "MARSH_FINAL_ACUMULADO_BKP"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    }
+}

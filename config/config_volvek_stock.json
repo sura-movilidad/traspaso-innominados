@@ -1,0 +1,11 @@
+{
+    "tablas_remotas" : {
+        "conosur_acumulado_r_bkp" : "Conosur_Acumulado_R_BKP",
+        "conosur_final_acumulado_bkp" : "CONOSUR_FINAL_ACUMULADO_BKP"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    }
+}
