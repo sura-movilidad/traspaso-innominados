@@ -3136,6 +3136,43 @@ def canonicalizar_planes(nombre: str) -> str:
         return f"Facturacion_Cesantia_{timestamp}.xlsx"
 
 
+def _excel_serial_to_datetime(x):
+    """
+    Convierte números 'serial Excel' a datetime (base 1899-12-30), deja el resto intacto.
+    """
+    if pd.isna(x):
+        return np.nan
+    # Si es numérico y razonable como serial de Excel
+    try:
+        # cuidado con strings numéricas
+        xv = float(x)
+        if 1 <= xv <= 60000:  # ~año 2064
+            return pd.Timestamp("1899-12-30") + pd.to_timedelta(int(xv), unit="D")
+    except Exception:
+        pass
+    return x
+
+
+def _parse_to_yyyymmdd_int(series: pd.Series) -> pd.Series:
+    """
+    1) Limpia espacios
+    2) Convierte serial Excel -> datetime si aplica
+    3) pd.to_datetime con errors='coerce'
+    4) Formatea YYYYMMDD y castea a Int64 (preserva <NA> cuando no se puede parsear)
+    """
+    s = series.copy()
+    # Si viene como object, sanea
+    if pd.api.types.is_object_dtype(s):
+        s = s.astype(str).str.strip().replace({"": np.nan, "None": np.nan, "none": np.nan})
+    # Intentar serial Excel
+    s = s.map(_excel_serial_to_datetime)
+    # Parse genérico (maneja "2025-01-16 00:00:00", "16/01/2025", etc.)
+    d = pd.to_datetime(s, errors="coerce", dayfirst=False, infer_datetime_format=True)
+    # A YYYYMMDD como string, luego Int64
+    out = d.dt.strftime("%Y%m%d")
+    out = pd.to_numeric(out, errors="coerce").astype("Int64")
+    return out
+
 ####################################################################################################################
 ########################################### Homologación de nombres ################################################
 ####################################################################################################################
