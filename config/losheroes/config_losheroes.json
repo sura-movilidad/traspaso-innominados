@@ -1,0 +1,11 @@
+{
+    "tablas_remotas" : {
+        "tabla_principal" : "HISTORICO_CESANTIA_LosHeroes"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    },
+    "periodo" : "202511"
+}
