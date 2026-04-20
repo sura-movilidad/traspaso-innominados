@@ -3136,6 +3136,89 @@ def canonicalizar_planes(nombre: str) -> str:
         return f"Facturacion_Cesantia_{timestamp}.xlsx"
 
 
+def canonicalizar_nombre_archivo(nombre: str) -> str:
+    """
+    Canonicaliza un nombre de archivo Excel insertando el período YYYYMM
+    cuando no está presente de forma explícita.
+
+    Algoritmo:
+        1) Si el stem ya contiene un patrón YYYYMM numérico, se retorna tal cual.
+        2) Si contiene un año (20XX) y un nombre de mes (en español),
+           se sustituye el patrón "Mes Año" por YYYYMM.
+        3) Si sólo se encuentra año + mes pero no match de patrón regex,
+           se agrega YYYYMM al final del stem.
+
+    Uso típico:
+        - Volvek Flujo, Flujo 2 y Stock, donde cada archivo llega
+          con nombres como "Base cesantia SURA Flujo Marzo 2025.xlsx".
+
+    Args:
+        nombre: Nombre original del archivo (con extensión).
+
+    Returns:
+        str: Nombre canonicalizado con YYYYMM explícito.
+    """
+    MESES = {
+        "ENERO": "01", "ENE": "01",
+        "FEBRERO": "02", "FEB": "02",
+        "MARZO": "03", "MAR": "03",
+        "ABRIL": "04", "ABR": "04",
+        "MAYO": "05", "MAY": "05",
+        "JUNIO": "06", "JUN": "06",
+        "JULIO": "07", "JUL": "07",
+        "AGOSTO": "08", "AGO": "08",
+        "SEPTIEMBRE": "09", "SETIEMBRE": "09", "SEP": "09", "SET": "09",
+        "OCTUBRE": "10", "OCT": "10",
+        "NOVIEMBRE": "11", "NOV": "11",
+        "DICIEMBRE": "12", "DIC": "12",
+    }
+
+    MESES_PATTERN = (
+        r"(enero|febrero|marzo|abril|mayo|junio|julio|agosto"
+        r"|septiembre|setiembre|octubre|noviembre|diciembre"
+        r"|ene|feb|mar|abr|may|jun|jul|ago|sep|set|oct|nov|dic)"
+    )
+
+    p = Path(nombre)
+    stem, ext = p.stem, p.suffix
+
+    # 1) Si ya tiene YYYYMM numérico, devolver tal cual
+    m_per = re.search(r"(20\d{2})(0[1-9]|1[0-2])", stem)
+    if m_per:
+        return stem + ext
+
+    # 2) Normalizar stem (sin acentos, mayúsculas) para buscar año y mes
+    stem_norm = _strip_accents(stem).upper()
+
+    year = None
+    m_year = re.search(r"(20\d{2})", stem_norm)
+    if m_year:
+        year = m_year.group(1)
+
+    mes_encontrado = None
+    for k in MESES.keys():
+        if k in stem_norm:
+            mes_encontrado = k
+            break
+
+    # 3) Si encontramos año y mes, sustituir patrón por YYYYMM
+    if year and mes_encontrado:
+        mm = MESES[mes_encontrado]
+        yyyymm = f"{year}{mm}"
+
+        patron = re.compile(
+            rf"{MESES_PATTERN}\s*[-_/.,]*\s*(20\d{{2}})",
+            re.IGNORECASE,
+        )
+        nuevo_stem, n = patron.subn(yyyymm, stem)
+        if n == 0:
+            nuevo_stem = f"{stem} {yyyymm}"
+        return nuevo_stem + ext
+
+    # 4) Si no hay match, devolver tal cual
+    return stem + ext
+
+
 def _excel_serial_to_datetime(x):
     """
     Convierte números 'serial Excel' a datetime (base 1899-12-30), deja el resto intacto.
