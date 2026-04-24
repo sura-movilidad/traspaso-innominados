@@ -1,0 +1,10 @@
+{
+    "tablas_remotas" : {
+        "tabla_principal" : "Ripley_Fraude"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    }
+}

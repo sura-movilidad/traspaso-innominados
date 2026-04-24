@@ -1,0 +1,10 @@
+{
+    "tablas_remotas" : {
+        "tabla_principal" : "Recaudacion_ServiHabit"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    }
+}

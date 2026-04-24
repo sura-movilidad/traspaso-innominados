@@ -1,0 +1,27 @@
+{
+    "tablas_remotas": {
+        "total_araucana": "TOTAL_ARAUCANA_BKP",
+        "monitoring": "Monitoring_LaAraucana_BKP",
+        "marsh_final": "MARSH_FINAL_ACUMULADO_BKP",
+        "conosur_final": "CONOSUR_FINAL_ACUMULADO_BKP",
+        "flujo_final": "FLUJO_FINAL_ACUMULADO_BKP",
+        "flujo2_final": "FLUJO2_FINAL_ACUMULADO_BKP",
+        "stock_final": "STOCK_FINAL_ACUMULADO_BKP",
+        "planes_final": "PLANES_FINAL_ACUMULADO_BKP",
+        "total_araucana_prod": "TOTAL_ARAUCANA_BKP",
+        "oficio_ppi": "Oficio_LA_Araucana_PPI{oficio_suffix}_BKP"
+    },
+    "server_config": {
+        "server": "SGF1034",
+        "database": "Habitat",
+        "schema": "dbo"
+    },
+    "periodo": {
+        "oficio_suffix": "202512",
+        "corte_general": 202412,
+        "corte_especial": 202411,
+        "vigencia_general": 202511,
+        "vigencia_especial": 202510,
+        "polizas_especiales": [6354562, 7561166]
+    }
+}

@@ -1,0 +1,11 @@
+{
+    "tablas_remotas" : {
+        "volvek_acumulado_planes" : "VOLVEK_ACUMULADO_Planes",
+        "planes_final_acumulado" : "PLANES_FINAL_ACUMULADO"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    }
+}

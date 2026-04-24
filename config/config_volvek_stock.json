@@ -1,0 +1,11 @@
+{
+    "tablas_remotas" : {
+        "volvek_acumulado_stock" : "VOLVEK_ACUMULADO_STOCK",
+        "stock_final_acumulado" : "STOCK_FINAL_ACUMULADO"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    }
+}

@@ -1,0 +1,11 @@
+{
+    "tablas_remotas" : {
+        "volvek_acumulado_flujo" : "VOLVEK_ACUMULADO_FLUJO",
+        "flujo_final_acumulado" : "FLUJO_FINAL_ACUMULADO"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    }
+}

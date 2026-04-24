@@ -1,0 +1,11 @@
+{
+    "tablas_remotas" : {
+        "tabla_principal" : "UNIDAD_LEASING_RECAUDACION"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    },
+    "periodo" : "202511"
+}

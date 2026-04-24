@@ -1,0 +1,15 @@
+{
+    "tablas_remotas" : {
+        "tabla_principal" : "Recaudacion_Colmena"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    },
+    "mapa_polizas" : {
+        "69" : 7391284,
+        "70" : 7391285,
+        "71" : 7391286
+    }
+}

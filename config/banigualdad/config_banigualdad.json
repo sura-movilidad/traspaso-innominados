@@ -1,0 +1,10 @@
+{
+    "tablas_remotas" : {
+        "tabla_principal" : "BANIGUALDAD_HISTORICO_R"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    }
+}
