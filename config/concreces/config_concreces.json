@@ -1,0 +1,20 @@
+{
+    "tablas_remotas" : {
+        "tabla_principal" : "Recaudacion_Concreces"
+    },
+    "server_config" : {
+        "server" : "SGF1034",
+        "database" : "Habitat",
+        "schema" : "dbo"
+    },
+    "mapa_planes" : {
+        "8598974" : 4783,
+        "8598978" : 8621,
+        "8598975" : 8618,
+        "8598976" : 8619,
+        "8598977" : 8620,
+        "8598971" : 4784,
+        "8598973" : 5677,
+        "8598972" : 4780
+    }
+}
