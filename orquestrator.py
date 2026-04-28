@@ -13,7 +13,7 @@ BASE_DATA_DIR = "data"
 CCLA_DIR = "CCLA"
 EXCEL_EXTENSION = ".xlsx"
 
-# Notebook especial (final)
+# Notebook especial (final, dentro de CCLA)
 FINAL_NOTEBOOK_NAME = "Monitoreo_CCLA.ipynb"
 
 
@@ -45,7 +45,7 @@ def existe_excel_en_ruta(base_path: str, nombre_fuente: str) -> bool:
 def ejecutar_notebook(path_notebook: str) -> bool:
     print(f"[RUN] Ejecutando notebook: {path_notebook}")
 
-    # PROJECT_ROOT para notebooks
+    # PROJECT_ROOT para los notebooks
     project_root = os.path.abspath(os.getcwd())
     os.environ["PROJECT_ROOT"] = project_root
 
@@ -79,19 +79,46 @@ def main():
     final_notebook_path = None
 
     # ---------------------------------
-    # Descubrimiento de notebooks
+    # 1️⃣ Descubrimiento de notebooks
     # ---------------------------------
     for item in os.listdir(BASE_NOTEBOOKS_DIR):
         item_path = os.path.join(BASE_NOTEBOOKS_DIR, item)
 
-        # --- NOTEBOOK FINAL (especial) ---
-        if item == FINAL_NOTEBOOK_NAME:
-            final_notebook_path = item_path
-            continue
+        # -------------------------------------------------
+        # CASO A: carpeta CCLA (lógica especial)
+        # -------------------------------------------------
+        if item == CCLA_DIR and os.path.isdir(item_path):
+            for nb_file in os.listdir(item_path):
+                if not nb_file.endswith(".ipynb"):
+                    continue
 
-        # --- Notebook en carpeta (NO CCLA) ---
-        if os.path.isdir(item_path):
-            notebooks = [f for f in os.listdir(item_path) if f.endswith(".ipynb")]
+                nb_path = os.path.join(item_path, nb_file)
+
+                # Notebook final
+                if nb_file == FINAL_NOTEBOOK_NAME:
+                    final_notebook_path = nb_path
+                    continue
+
+                # Notebooks CCLA normales
+                nombre_fuente = nb_file.replace(".ipynb", "")
+                base_data = os.path.join(BASE_DATA_DIR, CCLA_DIR)
+
+                if existe_excel_en_ruta(base_data, nombre_fuente):
+                    tareas_run.append({
+                        "nombre": nombre_fuente,
+                        "path": nb_path
+                    })
+                else:
+                    tareas_skip.append(nombre_fuente)
+
+        # -------------------------------------------------
+        # CASO B: carpetas NO CCLA
+        # -------------------------------------------------
+        elif os.path.isdir(item_path):
+            notebooks = [
+                f for f in os.listdir(item_path)
+                if f.endswith(".ipynb")
+            ]
             if not notebooks:
                 continue
 
@@ -99,25 +126,16 @@ def main():
             path_nb = os.path.join(item_path, notebooks[0])
             base_data = BASE_DATA_DIR
 
-        # --- Notebook suelto (CCLA) ---
-        elif item.endswith(".ipynb"):
-            nombre_fuente = item.replace(".ipynb", "")
-            path_nb = item_path
-            base_data = os.path.join(BASE_DATA_DIR, CCLA_DIR)
-
-        else:
-            continue
-
-        if existe_excel_en_ruta(base_data, nombre_fuente):
-            tareas_run.append({
-                "nombre": nombre_fuente,
-                "path": path_nb
-            })
-        else:
-            tareas_skip.append(nombre_fuente)
+            if existe_excel_en_ruta(base_data, nombre_fuente):
+                tareas_run.append({
+                    "nombre": nombre_fuente,
+                    "path": path_nb
+                })
+            else:
+                tareas_skip.append(nombre_fuente)
 
     # ---------------------------------
-    # OUTPUT INICIAL
+    # 2️⃣ OUTPUT INICIAL
     # ---------------------------------
     total = len(tareas_run) + len(tareas_skip) + (1 if final_notebook_path else 0)
     print(f"\n[INFO] Notebooks detectados: {total}\n")
@@ -126,7 +144,7 @@ def main():
         print(f"[SKIP] {nombre} (sin Excel)")
 
     # ---------------------------------
-    # Ejecución PRINCIPAL
+    # 3️⃣ EJECUCIÓN PRINCIPAL
     # ---------------------------------
     errores = []
     ejecutados_ok = 0
@@ -145,10 +163,10 @@ def main():
             errores.append(tarea["nombre"])
 
     # ---------------------------------
-    # NOTEBOOK FINAL CONDICIONADO
+    # 4️⃣ NOTEBOOK FINAL (CCLA)
     # ---------------------------------
     if final_notebook_path:
-        print("\n[INFO] Evaluando ejecucion del notebook final...")
+        print("\n[INFO] Evaluando ejecución del notebook final (CCLA)...")
 
         if ejecutados_ok > 0:
             print("[INFO] Hubo cambios → ejecutando notebook final")
@@ -157,9 +175,9 @@ def main():
             print("[SKIP] Notebook final no ejecutado (sin cambios previos)")
 
     # ---------------------------------
-    # RESUMEN FINAL
+    # 5️⃣ RESUMEN FINAL
     # ---------------------------------
-    print("\n[INFO] ejecucion finalizada")
+    print("\n[INFO] Ejecución finalizada")
 
     if errores:
         print("[WARN] Notebooks con error:")
