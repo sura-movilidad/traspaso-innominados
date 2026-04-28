@@ -22,10 +22,6 @@ def normalizar_nombre(nombre: str) -> str:
 
 
 def existe_excel_en_ruta(base_path: str, nombre_fuente: str) -> bool:
-    """
-    Busca archivos Excel en:
-    base_path / <nombre_fuente> /
-    """
     if not os.path.exists(base_path):
         return False
 
